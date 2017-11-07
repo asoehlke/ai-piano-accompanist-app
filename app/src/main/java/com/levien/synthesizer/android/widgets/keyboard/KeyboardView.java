@@ -32,8 +32,8 @@ import com.levien.synthesizer.core.midi.MidiListener;
 public class KeyboardView extends View {
   public KeyboardView(Context context, AttributeSet attrs) {
     super(context, attrs);
-    nKeys_ = 96;
-    firstKey_ = 12;
+    nKeys_ = 24;
+    firstKey_ = 60; //12
     noteStatus_ = new byte[128];
     noteForFinger_ = new int[FINGERS];
     for (int i = 0; i < FINGERS; i++) {
