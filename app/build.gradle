@@ -1,5 +1,13 @@
 apply plugin: 'com.android.model.application'
 
+repositories {
+    flatDir {
+        dirs "tensorflow"
+    }
+    google()
+    jcenter()
+}
+
 model {
     android {
         compileSdkVersion 26
@@ -33,6 +41,7 @@ model {
                 jni {
                     source {
                         excludes.addAll(["main.cc", "wavout.cc", "test_*.cc", "SynthApp/*"])
+                        includes.add('tensorflow/prebuiltLibs')
                     }
                 }
             }
@@ -41,7 +50,8 @@ model {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     testCompile 'junit:junit:4.12'
-    compile 'com.android.support:appcompat-v7:23.4.0'
+    compile 'com.android.support:appcompat-v7:26.1.0'
+    compile 'org.tensorflow:tensorflow-android:+'
 }
