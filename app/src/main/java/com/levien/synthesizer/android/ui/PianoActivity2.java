@@ -41,6 +41,7 @@ import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
+import com.asoehlke.accompanist.AccompanyingMidiListener;
 import com.levien.synthesizer.R;
 import com.levien.synthesizer.android.widgets.keyboard.KeyboardSpec;
 import com.levien.synthesizer.android.widgets.keyboard.KeyboardView;
@@ -73,7 +74,7 @@ public class PianoActivity2 extends SynthActivity implements OnSharedPreferenceC
     presetSpinner_ = (Spinner)findViewById(R.id.presetSpinner);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR1) {
-      setupUsbMidi(getIntent());
+      //setupUsbMidi(getIntent());
     }
   }
 
@@ -197,7 +198,13 @@ public class PianoActivity2 extends SynthActivity implements OnSharedPreferenceC
 
   @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR1)
   protected void onSynthConnected() {
-    final MidiListener synthMidi = synthesizerService_.getMidiListener();
+    //final MidiListener synthMidi = synthesizerService_.getMidiListener();
+
+
+    final MidiListener synthMidi =
+            new AccompanyingMidiListener(synthesizerService_.getMidiListener(),
+                    getAssets());
+
     //piano_.bindTo(synthMidi);
     keyboard_.setMidiListener(synthMidi);
 

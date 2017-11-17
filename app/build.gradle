@@ -11,10 +11,10 @@ repositories {
 model {
     android {
         compileSdkVersion 26
-        buildToolsVersion "26.0.2"
+        buildToolsVersion "26.1.0"
         defaultConfig {
             applicationId "com.levien.synthesizer"
-            minSdkVersion.apiLevel 16
+            minSdkVersion.apiLevel 21
             targetSdkVersion.apiLevel 23
             versionCode 1
             versionName "1.0"
@@ -41,7 +41,7 @@ model {
                 jni {
                     source {
                         excludes.addAll(["main.cc", "wavout.cc", "test_*.cc", "SynthApp/*"])
-                        includes.add('tensorflow/prebuiltLibs')
+                        //includes.add('tensorflow/prebuiltLibs')
                     }
                 }
             }
@@ -52,6 +52,9 @@ model {
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     testCompile 'junit:junit:4.12'
+//    compile 'com.android.support:appcompat-v7:23.4.0'
     compile 'com.android.support:appcompat-v7:26.1.0'
-    compile 'org.tensorflow:tensorflow-android:+'
+    compile group: 'org.tensorflow', name: 'tensorflow-android', version: '1.4.0'
+    //compile 'org.tensorflow:tensorflow-android:+'
+    //compile 'org.tensorflow:tensorflow-android:1.3.0'
 }
