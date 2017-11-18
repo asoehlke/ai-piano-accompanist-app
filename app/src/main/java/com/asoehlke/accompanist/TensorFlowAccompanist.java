@@ -145,6 +145,7 @@ public class TensorFlowAccompanist {
         accompanist.runner = accompanist.sess.runner();
 
         // call the initializing operations
+        /*
         accompanist.runner.addTarget("init");
         Log.i(TAG, "init: " + accompanist.runner.run());
         accompanist.runner.addTarget("initVars");
@@ -153,7 +154,7 @@ public class TensorFlowAccompanist {
         Log.i(TAG, "init + meta: " + accompanist.runner.runAndFetchMetadata());
         accompanist.runner.addTarget("initVars");
         Log.i(TAG, "initVars + meta: " + accompanist.runner.runAndFetchMetadata());
-
+*/
         //accompanist.inferenceInterface =
         //        new TensorFlowInferenceInterface(accompanist.g);
         // initialize all variables, otherwise some the initial state variables
@@ -196,16 +197,17 @@ public class TensorFlowAccompanist {
         //Trace.endSection();
 
         // copy the rnn cell states to the input of the next call
-        runner.addTarget(copyStatesName);
-        runner.run();
+        //runner.addTarget(copyStatesName);
+        //runner.run();
         //inferenceInterface.run(new String[] {copyStatesName});
 
         final ArrayList<Note> notes = new ArrayList<Note>();
         for (int i = 0; i < numAccompanyingVoices; ++i) {
             boolean strike;
-            strike = outputs[i] > STRIKE_THRESHOLD;
+            strike = outputs[i + numAccompanyingVoices] > STRIKE_THRESHOLD;
             notes.add(new Note(Math.round(outputs[i]), strike));
-            Log.i(TAG, "voice: " + (i + 1) + ": " + notes.get(notes.size() - 1));
+            Log.i(TAG, "voice: " + (i + 1) + ": " + notes.get(notes.size() - 1)
+                + " strike: " + outputs[i+ numAccompanyingVoices]);
 
         }
         //Trace.endSection();

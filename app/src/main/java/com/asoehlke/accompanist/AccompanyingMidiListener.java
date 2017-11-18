@@ -29,6 +29,7 @@ import java.util.List;
 public class AccompanyingMidiListener extends MidiListenerProxy {
 
 
+    private static final String TAG = "AccompanyingListener";
     static private Note melodyOff_ = new Note(0, true);
     private TensorFlowAccompanist accompanist_;
 
@@ -55,54 +56,90 @@ public class AccompanyingMidiListener extends MidiListenerProxy {
 
         private List<Note> notesInCurrentTick;
 
+        private Note lastMelodyNote_ = melodyOff_;
+
         @Override
         public void run() {
             long millis = System.currentTimeMillis();
-            Log.i(TAG, "now: " + millis + " next : " + nextTickBeginTime_);
 
-            if (millis >= nextTickBeginTime_) {
-                if (currentTickOfQuarter_ == 4 || currentTickOfQuarter_ == 0) {
+            // record the last played note
+            if (melodyNote_.getKey() != 0)
+                lastMelodyNote_ = melodyNote_;
+
+            if (millis >= nextTickBeginTime_)
+            {
+                if (currentTickOfQuarter_ == 4 || currentTickOfQuarter_ == -1)
+                {
                     // continue with next quarter, if melody is played
-                    if (melodyNote_.getKey() > 0) {
+                    if (melodyNote_.getKey() > 0)
+                    {
                         lastQuarterBeginTime_ = millis;
-                        currentTickOfQuarter_ = 1;
-                    } else {
                         currentTickOfQuarter_ = 0;
+                    }
+                    else
+                    {
+                        currentTickOfQuarter_ = -1;
+                        lastMelodyNote_ = melodyNote_;
+                        // no melody played, stop accompanying
+                        if (notesInCurrentTick != null)
+                            for (Note note : notesInCurrentTick)
+                                listener_.onNoteOff(0, note.getKey(), velocity_);
                     }
                 }
 
-                if (currentTickOfQuarter_ > 0) {
-                    // play next tick
+                if (currentTickOfQuarter_ >= 0) {
+
+                    if (lastMelodyNote_.getKey() != 0)
+                    {
+                        List<Note> notesInNewTick = accompanist_.getNextVoices(lastMelodyNote_);
+                        if (notesInCurrentTick == null) {
+                            // first call, strike all notes
+                            for (Note note : notesInNewTick) {
+                                listener_.onNoteOn(0, note.getKey(), velocity_);
+                            }
+                        } else if (notesInNewTick.size() != notesInCurrentTick.size()) {
+                            // different sizes, terminate all old and start all new notes
+                            for (Note note : notesInCurrentTick) {
+                                listener_.onNoteOff(0, note.getKey(), velocity_);
+                            }
+                            for (Note note : notesInNewTick) {
+                                listener_.onNoteOn(0, note.getKey(), velocity_);
+                            }
+                        } else {
+                            // only change newly struck notes
+                            int count = 0;
+                            while (notesInNewTick.size() > count) {
+                                Note newNote = notesInNewTick.get(count);
+                                Note oldNote = notesInCurrentTick.get(count);
+                                if (newNote.getStrike()) {
+                                    listener_.onNoteOff(0, oldNote.getKey(), velocity_);
+                                    listener_.onNoteOn(0, newNote.getKey(), velocity_);
+                                }
+                                else if (newNote.getKey() != oldNote.getKey())
+                                {
+                                    // also turn off the old note,
+                                    // otherwise we cannot turn it off later
+                                    listener_.onNoteOff(0, oldNote.getKey(), velocity_);
+                                    listener_.onNoteOn(0, newNote.getKey(), velocity_);
+                                }
+                                count++;
+                            }
+                        }
+                        notesInCurrentTick = notesInNewTick;
+                        // the melody note is not new anymore
+                        lastMelodyNote_ = new Note(lastMelodyNote_.getKey(), false);
+                        melodyNote_ = new Note(melodyNote_.getKey(), false);
+                    }
+
+                    millis = System.currentTimeMillis();
                     currentTickOfQuarter_ += 1;
+                    // play next tick
                     nextTickBeginTime_ =
                             lastQuarterBeginTime_ + currentTickOfQuarter_ * 60000 / bpm_;
                     long timeToNextTick;
                     timeToNextTick = nextTickBeginTime_ - millis;
-
-                    List<Note> notesInNewTick = accompanist_.getNextVoices(melodyNote_);
-                    if (notesInNewTick.size() != notesInCurrentTick.size()) {
-                        // different sizes, terminate all old and start all new notes
-                        for (Note note : notesInCurrentTick) {
-                            listener_.onNoteOff(0, note.getKey(), velocity_);
-                        }
-                        for (Note note : notesInNewTick) {
-                            listener_.onNoteOn(0, note.getKey(), velocity_);
-                        }
-                    } else {
-                        int count = 0;
-                        while (notesInNewTick.size() > count) {
-                            Note newNote = notesInNewTick.get(count);
-                            Note oldNote = notesInCurrentTick.get(count);
-                            if (newNote.getStrike()) {
-                                listener_.onNoteOff(0, oldNote.getKey(), velocity_);
-                                listener_.onNoteOn(0, newNote.getKey(), velocity_);
-                            }
-                            count++;
-                        }
-                    }
-                    notesInCurrentTick = notesInNewTick;
-                    // the melody note is not new anymore
-                    melodyNote_ = new Note(melodyNote_.getKey(), false);
+                    Log.i(TAG, "now: " + currentTickOfQuarter_ + "=" + millis
+                            + " next : " + nextTickBeginTime_);
                     timerHandler.postDelayed(this, timeToNextTick);
                 }
             }
@@ -126,6 +163,7 @@ public class AccompanyingMidiListener extends MidiListenerProxy {
 
     @Override
     public void onNoteOff(int channel, int note, int velocity) {
+        Log.i(TAG, "Melody off: " + melodyNote_.getKey());
         melodyNote_ = melodyOff_;
         listener_.onNoteOff(channel, note, velocity);
     }
@@ -133,6 +171,7 @@ public class AccompanyingMidiListener extends MidiListenerProxy {
     @Override
     public void onNoteOn(int channel, int note, int velocity) {
         melodyNote_ = new Note(note, true);
+        Log.i(TAG, "Melody on: " + melodyNote_.getKey());
         velocity_ = velocity;
         timerHandler.postAtFrontOfQueue(timerRunnable);
         listener_.onNoteOn(channel, note, velocity);

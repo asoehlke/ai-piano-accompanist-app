@@ -35,7 +35,7 @@ public class ScrollStripView extends View {
     paint_.setColor(Color.GRAY);
     touchDown_ = new boolean[2];
     touchx_ = new float[2];
-    zoom_ = -1f;  // placeholder value to be replaced in onLayout
+    zoom_ = 5f;  // placeholder value to be replaced in onLayout
   }
 
   public void bindKeyboard(KeyboardView kv) {
