@@ -74,14 +74,16 @@ public class TensorFlowAccompanist {
     private String inputName;
     private String outputName;
 
-    // name of the operation to copy the network states of the last not as input for the next
-    private String copyStatesName;
+    // name of the tensor with the initial and final states of the LSTM cells
+    private String initStatesName;
+    private String finalStatesName;
 
     private int inputSize;
     private int numAccompanyingVoices;
 
     // Pre-allocated buffers.
     private int[] intValues;
+    private float[] stateValues;
     private float[] floatValues;
     private float[] outputs;
 
@@ -109,7 +111,8 @@ public class TensorFlowAccompanist {
             int inputSize,
             String inputName,
             String outputName,
-            String copyStatesName
+            String initStatesName,
+            String finalStatesName
             )
     {
         TensorFlowAccompanist accompanist = new TensorFlowAccompanist();
@@ -134,11 +137,17 @@ public class TensorFlowAccompanist {
         // Pre-allocate buffers.
         accompanist.intValues = new int[inputSize];
         accompanist.floatValues = new float[inputSize];
+
+        // ToDo: how to derive the shape?
+        accompanist.stateValues = new float[3 * 2 * 1 * 300];
+        accompanist.zeroStates();
+
         accompanist.outputs = new float[accompanist.numAccompanyingVoices * 2];
 
         accompanist.inputName = inputName;
+        accompanist.initStatesName = initStatesName;
         accompanist.outputName = outputName;
-        accompanist.copyStatesName = copyStatesName;
+        accompanist.finalStatesName = finalStatesName;
 
         accompanist.g = accompanist.inferenceInterface.graph();
         accompanist.sess = new Session(accompanist.g);
@@ -174,12 +183,14 @@ public class TensorFlowAccompanist {
         // Copy the input data into TensorFlow.
         //Trace.beginSection("fillInput");
         intValues[0] = melodyNote.getKey();
+
         if (melodyNote.getStrike()) intValues[1] = 1;
         else intValues[1] = 0;
 
         Log.i(TAG, "melody note: " + melodyNote);
 
         inferenceInterface.feed(inputName, intValues, 2);
+        inferenceInterface.feed(initStatesName, stateValues, 3, 2, 1, 300);
         //Trace.endSection();
 
         // Run the inference call.
@@ -188,12 +199,13 @@ public class TensorFlowAccompanist {
         // determine the output
         //runner.addTarget(outputName);
         //runner.run();
-        inferenceInterface.run(new String[] {outputName});
+        inferenceInterface.run(new String[] {outputName, finalStatesName});
         //Trace.endSection();
 
         // Copy the output Tensor back into the output array.
         //Trace.beginSection("readOutput");1
         inferenceInterface.fetch(outputName, outputs);
+        inferenceInterface.fetch(finalStatesName, stateValues);
         //Trace.endSection();
 
         // copy the rnn cell states to the input of the next call
@@ -205,9 +217,9 @@ public class TensorFlowAccompanist {
         for (int i = 0; i < numAccompanyingVoices; ++i) {
             boolean strike;
             strike = outputs[i + numAccompanyingVoices] > STRIKE_THRESHOLD;
-            notes.add(new Note(Math.round(outputs[i]), strike));
+            notes.add(new Note(Math.round(outputs[i] + 1), strike));
             Log.i(TAG, "voice: " + (i + 1) + ": " + notes.get(notes.size() - 1)
-                + " strike: " + outputs[i+ numAccompanyingVoices]);
+                + " (" + outputs[i+ numAccompanyingVoices] + ")");
 
         }
         //Trace.endSection();
@@ -216,5 +228,14 @@ public class TensorFlowAccompanist {
 
     public void close() {
         inferenceInterface.close();
+    }
+
+    // set all state values to 0
+    private void zeroStates()
+    {
+      for (int i = 0; i < stateValues.length; ++i)
+      {
+          stateValues[i] = 0;
+      }
     }
 }

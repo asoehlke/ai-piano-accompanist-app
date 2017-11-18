@@ -39,12 +39,44 @@ public class AccompanyingMidiListener extends MidiListenerProxy {
 
     //runs without a timer by reposting this handler at the end of the runnable
     Handler timerHandler = new Handler();
+
+    Runnable metronomRunnable = new Runnable() {
+
+        private static final String TAG = "metronomRunnable";
+
+        private int beatPitch_ = 160;
+        private int bpm_ = 80;
+        private int beatDuration_ = 100;
+        private int velocity_ = 10;
+
+
+        private long beatOffTime_ = 1;
+
+        public void run() {
+            /*return;
+            long millis = System.currentTimeMillis();
+            if (beatOffTime_ > 0 && millis >= beatOffTime_) {
+                listener_.onNoteOff(0, beatPitch_, 0);
+                beatOffTime_ = 0;
+                Log.i(TAG, "metronom off at " + millis);
+
+            }
+            else if (beatOffTime_ == 0)
+            {
+                listener_.onNoteOn(0, beatPitch_, velocity_);
+                beatOffTime_ = millis + beatDuration_;
+                timerHandler.postDelayed(this, beatOffTime_);
+                Log.i(TAG, "metronom on, off at " + beatOffTime_);
+            }*/
+        }
+    };
+
     Runnable timerRunnable = new Runnable() {
 
         private static final String TAG = "MidiListenerRunnable";
 
         // beats per minute
-        private int bpm_ = 100;
+        private int bpm_ = 60;
 
         // 0 : currently no voices active
         // 1-4: current tick
@@ -70,6 +102,7 @@ public class AccompanyingMidiListener extends MidiListenerProxy {
             {
                 if (currentTickOfQuarter_ == 4 || currentTickOfQuarter_ == -1)
                 {
+                    timerHandler.post(metronomRunnable);
                     // continue with next quarter, if melody is played
                     if (melodyNote_.getKey() > 0)
                     {
@@ -112,15 +145,17 @@ public class AccompanyingMidiListener extends MidiListenerProxy {
                                 Note newNote = notesInNewTick.get(count);
                                 Note oldNote = notesInCurrentTick.get(count);
                                 if (newNote.getStrike()) {
+                                    Log.i(TAG, "new accompanying note: " + oldNote
+                                    + " -> " + newNote);
                                     listener_.onNoteOff(0, oldNote.getKey(), velocity_);
                                     listener_.onNoteOn(0, newNote.getKey(), velocity_);
                                 }
                                 else if (newNote.getKey() != oldNote.getKey())
                                 {
-                                    // also turn off the old note,
-                                    // otherwise we cannot turn it off later
-                                    listener_.onNoteOff(0, oldNote.getKey(), velocity_);
-                                    listener_.onNoteOn(0, newNote.getKey(), velocity_);
+                                    Log.i(TAG, "keep old note: " + oldNote
+                                            + " -> " + newNote);
+                                    // keep the old note, otherwise it cannot be turned off later
+                                    notesInNewTick.set(count, oldNote);
                                 }
                                 count++;
                             }
@@ -135,7 +170,7 @@ public class AccompanyingMidiListener extends MidiListenerProxy {
                     currentTickOfQuarter_ += 1;
                     // play next tick
                     nextTickBeginTime_ =
-                            lastQuarterBeginTime_ + currentTickOfQuarter_ * 60000 / bpm_;
+                            lastQuarterBeginTime_ + currentTickOfQuarter_ * 60000 / (bpm_ * 4);
                     long timeToNextTick;
                     timeToNextTick = nextTickBeginTime_ - millis;
                     Log.i(TAG, "now: " + currentTickOfQuarter_ + "=" + millis
@@ -156,7 +191,9 @@ public class AccompanyingMidiListener extends MidiListenerProxy {
     public AccompanyingMidiListener(MidiListener listener, AssetManager assets) {
         super(listener);
         accompanist_ = TensorFlowAccompanist.create(assets,
-                "BachAccompanist.pb", 2, "input", "output", "state_update");
+                "BachAccompanist.pb", 2,
+                "input", "output",
+                "init_states", "final_states");
 
         timerHandler.postDelayed(timerRunnable, 0);
     };
